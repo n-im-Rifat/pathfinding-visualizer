@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pathfinding Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="/eel.js"></script>
+</head>
+<body>
+
+    <div class="navbar">
+        <!-- <h1>Pathfinder</h1> -->
+        <button onclick="startAlgo('dijkstra')">Dijkstra</button>
+        <button onclick="startAlgo('bfs')">BFS</button>
+        <button onclick="startAlgo('dfs')">DFS</button>
+        <button class="btn-reset" onclick="location.reload()">Reset</button>
+    </div>
+
+    <div id="grid-container"></div>
+
+    <script>
+        // --- 0. EXPOSE TO PYTHON (MUST BE FIRST) ---
+        // This is the part you were missing!
+        eel.expose(update_node_color);
+        function update_node_color(row, col, type) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            if (cell) {
+                // Don't color over start/end
+                const isStart = (row === startNode[0] && col === startNode[1]);
+                const isEnd = (row === endNode[0] && col === endNode[1]);
+
+                if (!isStart && !isEnd) {
+                    cell.classList.add(type); 
+                }
+            }
+        }
+
+        const ROWS = 20;
+        const COLS = 20;
+        
+        // --- 1. STATE MANAGEMENT ---
+        let startNode = null; 
+        let endNode = null;   
+        let isMouseDown = false; 
+
+        // --- 2. GRID CREATION ---
+        const container = document.getElementById('grid-container');
+        
+        for (let r = 0; r < ROWS; r++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.classList.add('row');
+            
+            for (let c = 0; c < COLS; c++) {
+                const node = document.createElement('div');
+                node.classList.add('node');
+                node.id = `cell-${r}-${c}`;
+                
+                node.dataset.row = r;
+                node.dataset.col = c;
+
+                node.addEventListener('mousedown', () => handleMouseDown(node, r, c));
+                node.addEventListener('mouseenter', () => handleMouseEnter(node, r, c));
+                node.addEventListener('mouseup', () => handleMouseUp());
+
+                rowDiv.appendChild(node);
+            }
+            container.appendChild(rowDiv);
+        }
+
+        document.addEventListener('mouseup', () => { isMouseDown = false; });
+
+
+        // --- 3. INTERACTION LOGIC ---
+        function handleMouseDown(node, r, c) {
+            isMouseDown = true;
+            placeItem(node, r, c);
+        }
+
+        function handleMouseEnter(node, r, c) {
+            if (isMouseDown) {
+                placeItem(node, r, c);
+            }
+        }
+
+        function handleMouseUp() {
+            isMouseDown = false;
+        }
+
+        function placeItem(node, r, c) {
+            // 1. Place Start
+            if (!startNode) {
+                if (node.classList.contains('end') || node.classList.contains('wall')) return;
+                node.classList.add('start');
+                startNode = [r, c];
+            } 
+            // 2. Place End
+            else if (!endNode) {
+                if (node.classList.contains('start') || node.classList.contains('wall')) return;
+                node.classList.add('end');
+                endNode = [r, c];
+            } 
+            // 3. Place/Remove Wall
+            else {
+                if (node.classList.contains('start') || node.classList.contains('end')) return;
+                
+                if (node.classList.contains('wall')) {
+                    node.classList.remove('wall');
+                } else {
+                    node.classList.add('wall');
+                }
+            }
+        }
+
+        // --- 4. SEND DATA TO PYTHON ---
+        function startAlgo(algoType) {
+            if (!startNode || !endNode) {
+                alert("Please select a Start and End node first!");
+                return;
+            }
+
+            let walls = [];
+            const allNodes = document.querySelectorAll('.wall');
+            allNodes.forEach(node => {
+                let r = parseInt(node.dataset.row);
+                let c = parseInt(node.dataset.col);
+                walls.push([r, c]);
+            });
+
+            console.log(`Running ${algoType}...`);
+            
+            if (algoType === 'dijkstra') {
+                eel.run_dijkstra(startNode, endNode, walls); 
+            } 
+            else if (algoType === 'bfs') {
+                eel.run_bfs(startNode, endNode, walls);
+            }
+            else if (algoType === 'dfs') {
+                eel.run_dfs(startNode, endNode, walls);
+            }
+        }
+    </script>
+</body>
+</html>
